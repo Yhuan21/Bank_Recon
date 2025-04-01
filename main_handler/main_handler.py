@@ -30,9 +30,7 @@ class MainHandler:
                                      on=['TRNNO', 'TRNDATE'],
                                      how='left')
 
-        merged_data = merged_data.merge(self.TRN_CHEQUE[['TRNNO', 'CHECK_DATE']],
-                                        on='TRNNO',
-                                        how='left')
+
         filtered_data = merged_data[
             (merged_data['TRNDATE'] >=
              datetime.strptime(self.start,
