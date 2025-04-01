@@ -1,0 +1,13 @@
+build/
+env/
+dist/
+__pycache__
+**/*.pyc
+**/*.dll
+New Folder/
+platforms/
+**/*.spec
+**/*.pkl
+**/*.exe
+BDC_gl_data.csv
+config.json
