@@ -13,14 +13,7 @@ import json
 # Suppress the specific warning related to pandas and the database connection
 warnings.filterwarnings("ignore", category=UserWarning, module="pandas")
 
-with open('config.json') as f:
-    config = json.load(f)
 
-directory_path = os.path.expanduser(config["directory_path"])
-default_directory_path = os.path.expanduser(config["default_directory_path"])
-
-file_names = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
-file_names = [f for f in file_names if f.lower().endswith(".mdb")]
 
 
 class Ui(QtWidgets.QMainWindow):

@@ -1,31 +1,19 @@
-import pyodbc
 import pandas as pd
-import os
 from datetime import datetime
-import json
+import pickle
 
 
-with open('config.json') as f:
-    config = json.load(f)
-
-
-directory_path = os.path.expanduser(config["directory_path"])
-
-def date_converter(date_string:str):
-    import datetime
-
-    # Sample date string
-
-    # Parse the date string into a datetime object
-    date_object = datetime.datetime.strptime(date_string, "%a %b %d %Y")
-    datetime64_object = date_object.strftime('%Y/%m/%d')
-
-    # Extract month, day, and year from the datetime object
-    return datetime64_object
+def date_converter(date_string: str) -> str:
+    """
+    Convert a date string in the format 'Wed Mar 03 2021' to 'YYYY/MM/DD'.
+    """
+    return datetime.strptime(date_string, "%a %b %d %Y").strftime("%Y/%m/%d")
 
 
 class MainHandler:
-    def __init__(self, start: str, end: str, company: str, directory_path: str) -> None:
+    def __init__(self, start: str,
+                 end: str, company: str,
+                 directory_path: str) -> None:
         self.company = company
         self.start = datetime.strptime(start, "%Y/%m/%d")
         self.end = datetime.strptime(end, "%Y/%m/%d")
@@ -89,9 +77,12 @@ class MainHandler:
             "AMOUNT",
         ]
 
-        self.TRN = pickle.load(open(f"{directory_path}/TRN.pkl", "rb"))[TRN_COLUMNS]
-        self.TRM = pickle.load(open(f"{directory_path}/TRM.pkl", "rb"))[TRM_COLUMNS]
-        self.TRN_CHEQUE = pickle.load(open(f"{directory_path}/TRN_CHEQUE.pkl", "rb"))[
+        self.TRN = pickle.load(open(f"{directory_path}"
+                                    f"/TRN.pkl", "rb"))[TRN_COLUMNS]
+        self.TRM = pickle.load(open(f"{directory_path}"
+                                    f"/TRM.pkl", "rb"))[TRM_COLUMNS]
+        self.TRN_CHEQUE = pickle.load(open(f"{directory_path}"
+                                           f"/TRN_CHEQUE.pkl", "rb"))[
             TRN_CHEQUE_COLUMNS
         ]
 
@@ -128,10 +119,12 @@ class MainHandler:
         )
 
         GL1.reset_index(inplace=True)
-        GL1.rename(columns={"index": "ID"}, inplace=True)
+        GL1.rename(columns={"index": "ID"},
+                   inplace=True)
 
         TRN_CHEQUE_DF = self.TRN_CHEQUE.copy()
-        TRN_CHEQUE_DF["CASH_TRN_REF"] = TRN_CHEQUE_DF["TRNNO"] + TRN_CHEQUE_DF["ACCTNO"]
+        TRN_CHEQUE_DF["CASH_TRN_REF"] = (
+                TRN_CHEQUE_DF["TRNNO"] + TRN_CHEQUE_DF["ACCTNO"])
         TRN_CHEQUE_DF.reset_index(inplace=True)
         TRN_CHEQUE_DF.rename(columns={"index": "ID_CHK"}, inplace=True)
 
@@ -168,14 +161,20 @@ class MainHandler:
             ),
             axis=1,
         )
-        GL_With_Check["NET_AMT"] = GL_With_Check["DR_AMT"] - GL_With_Check["CR_AMT_2"]
-        GL_With_Check["TRANSACTION REFERENCE"] = GL_With_Check.apply(
-            lambda x: x["OTHER_03"] if x["TRNTYPE"] == "03" else x["CHEQUENO"], axis=1
+        GL_With_Check["NET_AMT"] = (
+                GL_With_Check["DR_AMT"] - GL_With_Check["CR_AMT_2"])
+        GL_With_Check["TRANSACTION REFERENCE"] \
+            = GL_With_Check.apply(
+            lambda x: x["OTHER_03"] if x["TRNTYPE"] == "03" else x["CHEQUENO"],
+            axis=1
         ).fillna("")
 
         GL_With_Check["PAYEE"] = GL_With_Check["PAYEE_CHK"].combine_first(
             GL_With_Check["PAYEE"]
         )
+        # CHECKDATE
+        GL_With_Check["CHECKDATE"] = GL_With_Check["TRNDATE"].dt.strftime("%Y/%m/%d")
+        GL = GL_With_Check[GL_With_Check["NET_AMT"] != 0]
 
         GL = GL_With_Check[GL_With_Check["NET_AMT"] != 0]
         GL.to_csv(f"{self.company}_gl_data.csv", index=False)
