@@ -1,25 +1,17 @@
 import sys
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication  # Use QApplication from PyQt5.QtWidgets
 from ui.ui import Ui
 
-# Print the list of file names
-def date_converter(date_string: str):
-    import datetime
-    # Sample date string
-    # Parse the date string into a datetime object
-    date_object = datetime.datetime.strptime(date_string, "%a %b %d %Y")
-    datetime64_object = date_object.strftime('%Y/%m/%d')
-    # Extract month, day, and year from the datetime object
-    return datetime64_object
-
+def date_converter(date_string: str) -> str:
+    """
+    Convert a date string in the format 'Wed Mar 03 2021' to 'YYYY/MM/DD'.
+    """
+    return datetime.strptime(date_string, "%a %b %d %Y").strftime("%Y/%m/%d")
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    # window = CalendarApp()
-    # window.show()
-
+    app = QApplication(sys.argv)  # Use QApplication directly
     window = Ui()
-    window.setWindowFlags(window.windowFlags() | Qt.FramelessWindowHint)
+    window.setWindowTitle("PyQt-Frameless-Window")
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

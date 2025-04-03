@@ -6,96 +6,87 @@ import pandas as pd
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
 from PyQt5.QtCore import Qt
+from helpers.helpers import Helpers
 from main_handler.main_handler import MainHandler
+import json
 
 # Suppress the specific warning related to pandas and the database connection
 warnings.filterwarnings("ignore", category=UserWarning, module="pandas")
 
+with open('config.json') as f:
+    config = json.load(f)
 
-directory_path = os.path.expanduser("~\\Database\\FCU")  # Expands `~` to user directory
-if not os.path.exists(directory_path):
-    print(f"Error: The directory '{directory_path}' does not exist.")
-    os.makedirs(directory_path)  # Create the directory if missing
-    print(f"Created missing directory: {directory_path}")
-else:
-    print(f"Directory '{directory_path}' exists.")
+directory_path = os.path.expanduser(config["directory_path"])
+default_directory_path = os.path.expanduser(config["default_directory_path"])
+
 file_names = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
 file_names = [f for f in file_names if f.lower().endswith(".mdb")]
 
 
 class Ui(QtWidgets.QMainWindow):
     def __init__(self):
-        super(Ui, self).__init__()
-        uic.loadUi('basic copy.ui', self)
+        """Initialize the main window and UI components."""
+        super().__init__()
+        uic.loadUi("basic.ui", self)
+        self.helper = Helpers()
+        self.setup_vars()
+        self.show()
 
-        # Title Bar
+    def setup_vars(self):
+        """Set up UI variable connections."""
         self.btn_close.clicked.connect(self.closeApplication)
         self.btn_maximize_restore.clicked.connect(self.toggleMaximize)
         self.btn_minimize.clicked.connect(self.toggleMinimize)
 
-        # Database Combo Box
-        self.comboBox.addItems(file_names)
-        self.comboBox.currentIndexChanged.connect(self.onComboBoxIndexChanged)
+        self.drive_combo_box.addItems(self.helper.drive_letters)
+        self.drive_box_change(0)
+        self.drive_combo_box.currentIndexChanged.connect(self.drive_box_change)
+        self.create_csv_button.clicked.connect(self.create_csv)
 
-        # Table Combo Box
-        self.comboBox_2.addItems(["TRN", "TRM", "TRN_CHEQUE"])
-        self.comboBox_2.currentIndexChanged.connect(self.onComboBoxIndexChanged)
-
-        # Open Database
-        self.pushButton.clicked.connect(self.on_button_click)
-
-        # pushButton
-        self.show()
-
-    def onComboBoxIndexChanged(self, index):
-        # Get the selected item from the ComboBox
-        selected_item = self.comboBox.itemText(index)
-        self.table = self.comboBox_2.itemText(index) if self.comboBox_2.itemText(index) else "TRN"
-        self.conn = pyodbc.connect(
-            r'DRIVER={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=' + directory_path + "\\" + selected_item)
-        self.TRN = pd.read_sql(sql=f"select TOP 1000 * from {self.table} ; ", con=self.conn)
-
-        self.tableWidget.setHorizontalHeaderLabels(self.TRN.columns)
-        self.tableWidget.setColumnCount(self.TRN.shape[1])
-        self.tableWidget.setRowCount(self.TRN.shape[0])
-
-        # Insert data from the DataFrame into the QTableWidget
-        for row in range(self.TRN.shape[0]):
-            for col in range(self.TRN.shape[1]):
-                item = QTableWidgetItem(str(self.TRN.iloc[row, col]))
-                self.tableWidget.setItem(row, col, item)
+    def drive_box_change(self, index: int):
+        """Update the company box based on the selected drive."""
+        drive_letter = (
+            self.drive_combo_box.itemText(index) or self.drive_combo_box.currentText()
+        )
+        companies = self.helper.get_company_folders(drive_letter)
+        self.company_box.clear()
+        (
+            self.company_box.addItems(companies)
+            if companies
+            else self.status_box.setText("STATUS: No Company Folder Found")
+        )
+        self.status_box.setText(
+            f"STATUS: {len(companies)} company found"
+            if companies
+            else "STATUS: No Company Folder Found"
+        )
 
     def closeApplication(self):
-        # Close the application when the button is clicked
+        """Close the application."""
         self.close()
 
     def toggleMaximize(self):
-        if self.isMaximized():
-            # If the window is maximized, restore it
-            self.showNormal()
-        else:
-            # If the window is not maximized, maximize it
-            self.showMaximized()
+        """Toggle between maximizing and restoring the window."""
+        self.showNormal() if self.isMaximized() else self.showMaximized()
 
     def toggleMinimize(self):
-        if self.isMinimized():
-            # If the window is minimized, restore it
-            self.showNormal()
-        else:
-            # If the window is not minimized, minimize it
-            self.showMinimized()
+        """Minimize the window."""
+        self.showNormal() if self.isMinimized() else self.showMinimized()
 
-    def on_button_click(self):
-        self.start = self.calendarWidget.selectedDate()
-        start = self.start.toString('yyyy/MM/dd')
+    def create_csv(self):
+        """Create a CSV file based on selected date range and company."""
+        start = self.start_date_widget.selectedDate().toString("yyyy/MM/dd")
+        end = self.end_date_widget.selectedDate().toString("yyyy/MM/dd")
 
-        self.end = self.calendarWidget_2.selectedDate()
-        end = self.end.toString('yyyy/MM/dd')
+        self.progressBar.setVisible(True)
+        self.progressBar.setValue(10)
+        company = self.company_box.currentText()
+        directory_path = os.path.join(
+            self.drive_combo_box.currentText(), "bank_recon", company
+        )
 
-        selected_option = self.comboBox.currentText()
-        print(selected_option)
-        handler = MainHandler(selected_option, start, end)
+        handler = MainHandler(start, end, company, directory_path)
         handler.run()
+        self.progressBar.setValue(100)
 
-        pass
 
